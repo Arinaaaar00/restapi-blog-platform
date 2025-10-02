@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Создать пост - Blog API{% endblock %}
+
+{% block content %}
+<h1>Создать новый пост</h1>
+
+<form method="post" action="/posts/create">
+    <div class="form-group">
+        <label for="author_id">ID автора:</label>
+        <input type="number" id="author_id" name="author_id" required>
+    </div>
+    
+    <div class="form-group">
+        <label for="title">Заголовок:</label>
+        <input type="text" id="title" name="title" required>
+    </div>
+    
+    <div class="form-group">
+        <label for="content">Содержание:</label>
+        <textarea id="content" name="content" rows="10" required></textarea>
+    </div>
+    
+    <button type="submit">Создать пост</button>
+</form>
+
+<a href="/">Назад к списку</a>
+{% endblock %}
