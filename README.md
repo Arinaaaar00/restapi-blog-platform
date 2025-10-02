@@ -1,7 +1,7 @@
 # restapi-blog-platform!
 
 
-[IMAGE 2025-10-02 6:54:49 PM](https://github.com/user-attachments/assets/2e316a1e-f61c-4e49-83ad-314841b24326)
+[IMAGE](https://github.com/user-attachments/assets/2e316a1e-f61c-4e49-83ad-314841b24326)
 
 
 ![IMAGE 2025-10-02 6:55:19 PM](https://github.com/user-attachments/assets/be91fd69-a1c5-44b7-9f07-22e12c964646)
