@@ -1,23 +1,26 @@
-from pydantic import BaseModel, validator
 from datetime import datetime
-from typing import Optional
+
+from pydantic import BaseModel, validator
+
 
 class PostBase(BaseModel):
     title: str
     content: str
 
+
 class PostCreate(PostBase):
-    @validator('title')
-    def title_not_empty(cls, v):
+    @validator("title")
+    def title_not_empty(cls, v: str) -> str:
         if not v.strip():
-            raise ValueError('Title cannot be empty')
+            raise ValueError("Title cannot be empty")
         return v
 
-    @validator('content')
-    def content_not_empty(cls, v):
+    @validator("content")
+    def content_not_empty(cls, v: str) -> str:
         if not v.strip():
-            raise ValueError('Content cannot be empty')
+            raise ValueError("Content cannot be empty")
         return v
+
 
 class Post(PostBase):
     id: int

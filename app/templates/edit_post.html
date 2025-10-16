@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Редактировать пост - Blog Platform{% endblock %}
+
+{% block content %}
+<h2>Редактировать пост</h2>
+
+<form method="post" action="/posts/{{ post.id }}/edit">
+    <div class="form-group">
+        <label for="title">Заголовок:</label>
+        <input type="text" id="title" name="title" value="{{ post.title }}" required>
+    </div>
+
+    <div class="form-group">
+        <label for="content">Содержание:</label>
+        <textarea id="content" name="content" required>{{ post.content }}</textarea>
+    </div>
+
+    <button type="submit" class="btn" style="background: #27ae60;">Обновить пост</button>
+    <a href="/posts/{{ post.id }}" class="btn" style="background: #7f8c8d;">Отмена</a>
+</form>
+{% endblock %}

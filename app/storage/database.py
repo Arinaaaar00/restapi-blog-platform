@@ -1,35 +1,23 @@
-from datetime import datetime
-from app.models.user import User
 from app.models.post import Post
+from app.models.user import User
 
-users_db = {}
-posts_db = {}
-user_id_counter = 1
-post_id_counter = 1
+users_db: dict[int, User] = {}
+posts_db: dict[int, Post] = {}
 
-def init_sample_data():
-    """Initialize sample data for testing"""
-    global user_id_counter, post_id_counter
-    
-    user_id = user_id_counter
-    user_id_counter += 1
-    users_db[user_id] = User(
-        id=user_id,
-        email="admin@example.com",
-        login="admin",
-        created_at=datetime.now(),
-        updated_at=datetime.now()
+
+def init_sample_data() -> None:
+    from app.models.user import UserCreate
+    from app.services.post_service import PostService
+    from app.services.user_service import UserService
+
+    user = UserService.create_user(
+        UserCreate(email="admin@example.com", login="admin", password="admin123")
     )
-    
-    post_id = post_id_counter
-    post_id_counter += 1
-    posts_db[post_id] = Post(
-        id=post_id,
-        author_id=user_id,
+    PostService.create_post(
+        author_id=user.id,
         title="Добро пожаловать в блог!",
-        content="Это первый пост в нашем блоге. Здесь вы можете делиться своими мыслями и идеями.",
-        created_at=datetime.now(),
-        updated_at=datetime.now()
+        content="Это первый пост в нашем блоге.",
     )
+
 
 init_sample_data()
