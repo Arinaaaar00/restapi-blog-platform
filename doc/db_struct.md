@@ -11,7 +11,7 @@ erDiagram
         text profile_text
         varchar avatar_path
     }
-    
+
     posts {
         bigint id PK
         bigint user_id FK
@@ -22,14 +22,14 @@ erDiagram
         boolean is_published
         integer view_counter
     }
-    
+
     tags {
         bigint id PK
         varchar tag_name
         text tag_description
         timestamptz created_at
     }
-    
+
     comments {
         bigint id PK
         bigint post_id FK
@@ -40,25 +40,25 @@ erDiagram
         timestamptz updated_at
         boolean was_edited
     }
-    
+
     bookmarks {
         bigint user_id PK,FK
         bigint post_id PK,FK
         timestamptz saved_at
     }
-    
+
     user_subscriptions {
         bigint follower_id PK,FK
         bigint following_id PK,FK
         timestamptz subscribed_at
     }
-    
+
     post_reactions {
         bigint user_id PK,FK
         bigint post_id PK,FK
         timestamptz reacted_at
     }
-    
+
     post_tags {
         bigint post_id PK,FK
         bigint tag_id PK,FK

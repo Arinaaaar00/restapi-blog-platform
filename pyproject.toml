@@ -54,3 +54,19 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 strict_equality = true
 no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+module = [
+    "app.models.*",
+    "app.routers.*",
+    "app.services.*",
+    "app.storage.*",
+    "app.main"
+]
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "tests.*"
+]
+disallow_untyped_defs = false

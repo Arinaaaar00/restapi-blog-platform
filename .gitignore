@@ -66,3 +66,27 @@ Thumbs.db
 
 # Logs
 *.log
+# Временные и системные файлы
+get-pip.py
+*.tmp
+*.temp
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
