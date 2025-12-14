@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Создать пост - Chic & Chat{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card" style="max-width: 800px; margin: 0 auto;">
+        <h2>Создать новый пост</h2>
+        
+        <form id="createPostForm" style="margin-top: 2rem;">
+            <div class="form-group">
+                <label for="title">Заголовок</label>
+                <input type="text" id="title" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="content">Содержание</label>
+                <textarea id="content" required style="min-height: 300px;"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="tags">Теги (через запятую)</label>
+                <input type="text" id="tags" placeholder="мода, красота, путешествия">
+            </div>
+            
+            <button type="submit" class="btn" style="width: 100%;">Опубликовать пост</button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById('createPostForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const title = document.getElementById('title').value;
+    const content = document.getElementById('content').value;
+    const tagsInput = document.getElementById('tags').value;
+    const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(Boolean) : [];
+    
+    try {
+        const response = await apiRequest('/api/v1/posts', {
+            method: 'POST',
+            body: JSON.stringify({
+                post_title: title,
+                post_content: content,
+                tag_names: tags,
+                is_published: true
+            })
+        });
+        
+        if (response.ok) {
+            const post = await response.json();
+            showAlert('Пост опубликован! 🎉', 'success');
+            setTimeout(() => {
+                window.location.href = `/post/${post.id}`;
+            }, 1000);
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Ошибка создания поста', 'error');
+        }
+    } catch (error) {
+        showAlert('Ошибка подключения', 'error');
+    }
+});
+</script>
+{% endblock %}

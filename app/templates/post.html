@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block title %}Пост - Chic & Chat{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div id="postContainer">
+        <div class="loading">Загрузка...</div>
+    </div>
+</div>
+
+<script>
+const postId = window.location.pathname.split('/').pop();
+let isBookmarked = false;
+
+async function loadPost() {
+    try {
+        const response = await fetch(`/api/v1/posts/${postId}`);
+        if (!response.ok) throw new Error('Post not found');
+        
+        const post = await response.json();
+        displayPost(post);
+        loadComments();
+    } catch (error) {
+        document.getElementById('postContainer').innerHTML = '<p class="alert alert-error">Пост не найден</p>';
+    }
+}
+
+function displayPost(post) {
+    document.getElementById('postContainer').innerHTML = `
+        <article class="card fade-in">
+            <h1>${escapeHtml(post.post_title)}</h1>
+            <div class="post-meta">
+                <span>👤 <a href="/profile/${post.author.id}">${escapeHtml(post.author.username)}</a></span>
+                <span>❤️ ${post.likes_count}</span>
+                <span>💬 ${post.comments_count}</span>
+                <span>👁️ ${post.view_counter}</span>
+                <span>📅 ${formatDate(post.created_at)}</span>
+            </div>
+            ${post.tags.length > 0 ? `
+                <div class="tags" style="margin: 1rem 0;">
+                    ${post.tags.map(tag => `<span class="tag">${escapeHtml(tag.tag_name)}</span>`).join('')}
+                </div>
+            ` : ''}
+            <div class="post-content" style="margin-top: 2rem; white-space: pre-wrap; line-height: 1.8;">
+                ${escapeHtml(post.post_content)}
+            </div>
+            <div style="margin-top: 2rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                <button onclick="likePost()" class="btn btn-secondary" id="likeBtn">❤️ Лайк</button>
+                <button onclick="bookmarkPost()" class="btn btn-outline" id="bookmarkBtn">🔖 В закладки</button>
+                <a href="/posts" class="btn btn-outline">← Назад к постам</a>
+            </div>
+        </article>
+        
+        <div class="card" style="margin-top: 2rem;">
+            <h3>Комментарии</h3>
+            <div id="commentForm" style="margin-top: 1rem;">
+                <textarea id="commentText" placeholder="Ваш комментарий..." style="width: 100%; min-height: 100px; padding: 1rem; border: 2px solid var(--rose-100); border-radius: 12px; font-family: inherit;"></textarea>
+                <button onclick="addComment()" class="btn" style="margin-top: 1rem;">Отправить</button>
+            </div>
+            <div id="commentsContainer" style="margin-top: 2rem;">
+                <div class="loading">Загрузка комментариев...</div>
+            </div>
+        </div>
+    `;
+}
+
+async function loadComments() {
+    try {
+        const response = await fetch(`/api/v1/posts/${postId}/comments`);
+        const comments = await response.json();
+        
+        const container = document.getElementById('commentsContainer');
+        if (comments.length === 0) {
+            container.innerHTML = '<p style="color: var(--text-light);">Пока нет комментариев. Будьте первым!</p>';
+            return;
+        }
+        
+        container.innerHTML = comments.map(comment => `
+            <div class="comment">
+                <div class="comment-header">
+                    <span class="comment-author">${escapeHtml(comment.user.username)}</span>
+                    <span class="comment-date">${formatDate(comment.created_at)}</span>
+                </div>
+                <p>${escapeHtml(comment.comment_text)}</p>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading comments:', error);
+    }
+}
+
+async function addComment() {
+    const text = document.getElementById('commentText').value.trim();
+    if (!text) {
+        showAlert('Комментарий не может быть пустым', 'error');
+        return;
+    }
+    
+    if (!window.authToken) {
+        showAlert('Войдите, чтобы оставить комментарий', 'error');
+        openModal('loginModal');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/v1/posts/${postId}/comments`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${window.authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ comment_text: text })
+        });
+        
+        if (response.ok) {
+            document.getElementById('commentText').value = '';
+            showAlert('Комментарий добавлен! 💬', 'success');
+            loadComments();
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Ошибка добавления комментария', 'error');
+        }
+    } catch (error) {
+        console.error('Error adding comment:', error);
+        showAlert('Ошибка добавления комментария', 'error');
+    }
+}
+
+async function likePost() {
+    if (!window.authToken) {
+        showAlert('Войдите, чтобы поставить лайк', 'error');
+        openModal('loginModal');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/v1/posts/${postId}/like`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${window.authToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            showAlert('Лайк поставлен! ❤️', 'success');
+            setTimeout(() => loadPost(), 500);
+        } else {
+            const error = await response.json();
+            if (error.detail.includes('Already liked')) {
+                // Try to unlike
+                const unlikeResponse = await fetch(`/api/v1/posts/${postId}/like`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${window.authToken}`
+                    }
+                });
+                if (unlikeResponse.ok) {
+                    showAlert('Лайк убран', 'success');
+                    setTimeout(() => loadPost(), 500);
+                }
+            } else {
+                showAlert(error.detail || 'Ошибка', 'error');
+            }
+        }
+    } catch (error) {
+        console.error('Error liking post:', error);
+        showAlert('Ошибка', 'error');
+    }
+}
+
+async function bookmarkPost() {
+    console.log('Bookmark clicked');
+    console.log('Auth token:', window.authToken);
+    
+    if (!window.authToken) {
+        showAlert('Войдите, чтобы добавить в закладки', 'error');
+        openModal('loginModal');
+        return;
+    }
+    
+    try {
+        const url = `/api/v1/posts/${postId}/bookmark`;
+        console.log('Bookmarking URL:', url);
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${window.authToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        console.log('Bookmark response status:', response.status);
+        const responseData = await response.json();
+        console.log('Bookmark response:', responseData);
+        
+        if (response.ok) {
+            isBookmarked = true;
+            const btn = document.getElementById('bookmarkBtn');
+            btn.textContent = '✓ В закладках';
+            btn.onclick = unbookmarkPost;
+            showAlert('Добавлено в закладки! 🔖', 'success');
+        } else {
+            if (responseData.detail && responseData.detail.includes('Already bookmarked')) {
+                showAlert('Уже в закладках', 'info');
+                const btn = document.getElementById('bookmarkBtn');
+                btn.textContent = '✓ В закладках';
+                btn.onclick = unbookmarkPost;
+            } else {
+                showAlert(responseData.detail || 'Ошибка добавления в закладки', 'error');
+            }
+        }
+    } catch (error) {
+        console.error('Error bookmarking post:', error);
+        showAlert('Ошибка добавления в закладки', 'error');
+    }
+}
+
+async function unbookmarkPost() {
+    if (!window.authToken) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/v1/posts/${postId}/bookmark`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${window.authToken}`
+            }
+        });
+        
+        if (response.ok) {
+            isBookmarked = false;
+            const btn = document.getElementById('bookmarkBtn');
+            btn.textContent = '🔖 В закладки';
+            btn.onclick = bookmarkPost;
+            showAlert('Удалено из закладок', 'success');
+        }
+    } catch (error) {
+        console.error('Error removing bookmark:', error);
+        showAlert('Ошибка удаления', 'error');
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+loadPost();
+</script>
+{% endblock %}

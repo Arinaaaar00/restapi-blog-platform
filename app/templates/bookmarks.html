@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Мои закладки - Chic & Chat{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 style="text-align: center; margin-bottom: 2rem;">Мои закладки 🔖</h1>
+    
+    <div id="bookmarksContainer" class="grid-2">
+        <div class="loading">Загрузка закладок...</div>
+    </div>
+</div>
+
+<script>
+async function loadBookmarks() {
+    console.log('Loading bookmarks...');
+    
+    // Wait for auth to be ready
+    const token = localStorage.getItem('authToken');
+    console.log('Auth token from localStorage:', token);
+    
+    try {
+        // Check if user is logged in
+        if (!token) {
+            console.log('No auth token found');
+            document.getElementById('bookmarksContainer').innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 3rem;">
+                    <p class="alert alert-info">Войдите, чтобы увидеть свои закладки</p>
+                    <button onclick="openModal('loginModal')" class="btn" style="margin-top: 1rem;">Войти</button>
+                </div>
+            `;
+            return;
+        }
+
+        const url = '/api/v1/users/me/bookmarks';
+        console.log('Fetching bookmarks from:', url);
+        
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Error response:', errorText);
+            
+            if (response.status === 401) {
+                document.getElementById('bookmarksContainer').innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 3rem;">
+                        <p class="alert alert-info">Сессия истекла. Войдите заново</p>
+                        <button onclick="logout(); openModal('loginModal');" class="btn" style="margin-top: 1rem;">Войти</button>
+                    </div>
+                `;
+                return;
+            }
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+        
+        const posts = await response.json();
+        console.log('Bookmarks loaded successfully!');
+        console.log('Number of bookmarks:', posts.length);
+        console.log('Bookmarks:', posts);
+        displayBookmarks(posts);
+    } catch (error) {
+        console.error('Error loading bookmarks:', error);
+        document.getElementById('bookmarksContainer').innerHTML = `
+            <div style="grid-column: 1/-1;">
+                <p class="alert alert-error">
+                    Ошибка загрузки закладок: ${error.message}
+                </p>
+                <p style="margin-top: 1rem; color: var(--text-light);">
+                    Откройте консоль браузера (F12) для подробностей
+                </p>
+            </div>
+        `;
+    }
+}
+
+function displayBookmarks(posts) {
+    const container = document.getElementById('bookmarksContainer');
+    
+    if (!posts || posts.length === 0) {
+        container.innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; padding: 3rem;">
+                <p style="font-size: 1.2rem; color: var(--text-light); margin-bottom: 1rem;">
+                    У вас пока нет сохраненных постов 📚
+                </p>
+                <p style="color: var(--text-light); margin-bottom: 2rem;">
+                    Откройте любой пост и нажмите "🔖 В закладки"
+                </p>
+                <a href="/posts" class="btn">Найти интересные посты</a>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = posts.map(post => `
+        <article class="post-card card fade-in">
+            <h3><a href="/post/${post.id}">${escapeHtml(post.post_title)}</a></h3>
+            <div class="post-meta">
+                <span>👤 <a href="/profile/${post.author.id}">${escapeHtml(post.author.username)}</a></span>
+                <span>❤️ ${post.likes_count || 0}</span>
+                <span>💬 ${post.comments_count || 0}</span>
+                <span>📅 ${formatDate(post.created_at)}</span>
+            </div>
+            ${post.tags && post.tags.length > 0 ? `
+                <div class="tags">
+                    ${post.tags.map(tag => `<span class="tag">${escapeHtml(tag.tag_name)}</span>`).join('')}
+                </div>
+            ` : ''}
+            <div class="post-content">
+                <p>${escapeHtml(post.post_content.substring(0, 200))}${post.post_content.length > 200 ? '...' : ''}</p>
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
+                <a href="/post/${post.id}" class="btn btn-outline">Читать далее</a>
+                <button onclick="removeBookmark(${post.id})" class="btn btn-secondary">🗑️ Удалить</button>
+            </div>
+        </article>
+    `).join('');
+}
+
+async function removeBookmark(postId) {
+    if (!confirm('Удалить из закладок?')) return;
+    
+    const token = localStorage.getItem('authToken');
+    
+    try {
+        const response = await fetch(`/api/v1/posts/${postId}/bookmark`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.ok) {
+            if (typeof showAlert === 'function') {
+                showAlert('Удалено из закладок', 'success');
+            }
+            loadBookmarks();
+        } else {
+            const error = await response.json();
+            if (typeof showAlert === 'function') {
+                showAlert(error.detail || 'Ошибка удаления', 'error');
+            }
+        }
+    } catch (error) {
+        console.error('Error removing bookmark:', error);
+        if (typeof showAlert === 'function') {
+            showAlert('Ошибка удаления', 'error');
+        }
+    }
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatDate(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+// Wait for DOM and main.js to load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(loadBookmarks, 500);
+    });
+} else {
+    setTimeout(loadBookmarks, 500);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <!-- Hero Section -->
+    <div class="hero fade-in">
+        <h1>Добро пожаловать в Chic & Chat</h1>
+        <p>Элегантное пространство для ваших мыслей, историй и вдохновения. Присоединяйтесь к сообществу утонченных женщин, которые делятся своими переживаниями и открытиями.</p>
+        <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2rem;">
+            <a href="#" onclick="openModal('registerModal')" class="btn">Начать писать</a>
+            <a href="/posts" class="btn btn-outline">Читать посты</a>
+        </div>
+    </div>
+
+    <!-- Featured Posts -->
+    <section>
+        <h2 style="text-align: center; margin-bottom: 2rem;">Популярные посты</h2>
+        <div id="featuredPosts" class="grid-2">
+            <div class="loading">Загрузка постов</div>
+        </div>
+    </section>
+
+    <!-- Categories -->
+    <section style="margin-top: 4rem;">
+        <h2 style="text-align: center; margin-bottom: 2rem;">Популярные темы</h2>
+        <div class="tags" style="justify-content: center;">
+            <a href="/posts?tag=мода" class="tag">💃 Мода</a>
+            <a href="/posts?tag=красота" class="tag">💄 Красота</a>
+            <a href="/posts?tag=путешествия" class="tag">✈️ Путешествия</a>
+            <a href="/posts?tag=стиль-жизни" class="tag">🌸 Стиль жизни</a>
+            <a href="/posts?tag=кулинария" class="tag">🍰 Кулинария</a>
+            <a href="/posts?tag=интерьер" class="tag">🏡 Интерьер</a>
+            <a href="/posts?tag=отношения" class="tag">💕 Отношения</a>
+            <a href="/posts?tag=саморазвитие" class="tag">�� Саморазвитие</a>
+        </div>
+    </section>
+
+    <!-- Call to Action -->
+    <section style="margin-top: 4rem; text-align: center;">
+        <div class="card" style="max-width: 600px; margin: 0 auto; padding: 3rem;">
+            <h2>Присоединяйтесь к нашему сообществу</h2>
+            <p>Создавайте посты, делитесь мнениями, находите единомышленниц и вдохновляйтесь.</p>
+            <a href="#" onclick="openModal('registerModal')" class="btn" style="margin-top: 1rem;">Создать аккаунт</a>
+        </div>
+    </section>
+</div>
+
+<script>
+// Load featured posts
+async function loadFeaturedPosts() {
+    try {
+        const response = await fetch('/api/v1/posts?page=1&page_size=6');
+        const posts = await response.json();
+        
+        const container = document.getElementById('featuredPosts');
+        if (posts.length === 0) {
+            container.innerHTML = '<p style="text-align: center; grid-column: 1/-1;">Пока нет постов. Будьте первой! 💕</p>';
+            return;
+        }
+        
+        container.innerHTML = posts.map(post => `
+            <article class="post-card card fade-in">
+                <h3><a href="/post/${post.id}">${escapeHtml(post.post_title)}</a></h3>
+                <div class="post-meta">
+                    <span>👤 ${escapeHtml(post.author.username)}</span>
+                    <span>❤️ ${post.likes_count}</span>
+                    <span>💬 ${post.comments_count}</span>
+                    <span>📅 ${formatDate(post.created_at)}</span>
+                </div>
+                ${post.tags.length > 0 ? `
+                    <div class="tags">
+                        ${post.tags.map(tag => `<span class="tag">${escapeHtml(tag.tag_name)}</span>`).join('')}
+                    </div>
+                ` : ''}
+                <div class="post-content">
+                    <p>${escapeHtml(post.post_content.substring(0, 200))}${post.post_content.length > 200 ? '...' : ''}</p>
+                </div>
+                <a href="/post/${post.id}" class="btn btn-outline" style="margin-top: 1rem;">Читать далее</a>
+            </article>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading posts:', error);
+        document.getElementById('featuredPosts').innerHTML = '<p class="alert alert-error">Ошибка загрузки постов</p>';
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 60) return `${diffMins} мин назад`;
+    if (diffHours < 24) return `${diffHours} ч назад`;
+    if (diffDays < 7) return `${diffDays} дн назад`;
+    
+    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+// Load posts on page load
+loadFeaturedPosts();
+</script>
+{% endblock %}

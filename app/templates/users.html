@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Авторы - Chic & Chat{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 style="text-align: center; margin-bottom: 2rem;">Наши авторы</h1>
+    
+    <!-- Search -->
+    <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="🔍 Поиск авторов..." onkeyup="searchUsers()">
+    </div>
+    
+    <!-- Users Grid -->
+    <div id="usersContainer" class="grid">
+        <div class="loading">Загрузка авторов</div>
+    </div>
+</div>
+
+<script>
+let allUsers = [];
+
+async function loadUsers() {
+    try {
+        const response = await fetch('/api/v1/users?page=1&page_size=100');
+        allUsers = await response.json();
+        displayUsers(allUsers);
+    } catch (error) {
+        console.error('Error loading users:', error);
+        document.getElementById('usersContainer').innerHTML = '<p class="alert alert-error">Ошибка загрузки авторов</p>';
+    }
+}
+
+function displayUsers(users) {
+    const container = document.getElementById('usersContainer');
+    
+    if (users.length === 0) {
+        container.innerHTML = '<p style="text-align: center; grid-column: 1/-1;">Авторов не найдено 😢</p>';
+        return;
+    }
+    
+    container.innerHTML = users.map(user => `
+        <div class="card fade-in" style="text-align: center;">
+            <div class="avatar" style="margin: 0 auto;">
+                ${user.username.charAt(0).toUpperCase()}
+            </div>
+            <h3 style="margin-top: 1rem;">${escapeHtml(user.username)}</h3>
+            <p style="color: var(--text-light); font-size: 0.9rem;">${escapeHtml(user.email)}</p>
+            ${user.profile_text ? `<p style="margin-top: 0.5rem;">${escapeHtml(user.profile_text)}</p>` : ''}
+            <div class="profile-stats" style="justify-content: center; margin-top: 1rem;">
+                <div class="stat">
+                    <div class="stat-value">${user.posts_count || 0}</div>
+                    <div class="stat-label">Постов</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">${user.followers_count || 0}</div>
+                    <div class="stat-label">Подписчиков</div>
+                </div>
+            </div>
+            <a href="/profile/${user.id}" class="btn" style="margin-top: 1rem; width: 100%;">Профиль</a>
+        </div>
+    `).join('');
+}
+
+function searchUsers() {
+    const query = document.getElementById('searchInput').value.toLowerCase();
+    const filtered = allUsers.filter(user => 
+        user.username.toLowerCase().includes(query) || 
+        user.email.toLowerCase().includes(query)
+    );
+    displayUsers(filtered);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+loadUsers();
+</script>
+{% endblock %}

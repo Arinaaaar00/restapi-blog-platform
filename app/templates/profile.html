@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Профиль - Chic & Chat{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div id="profileContainer">
+        <div class="loading">Загрузка профиля...</div>
+    </div>
+    
+    <div style="margin-top: 2rem;">
+        <h2>Посты автора</h2>
+        <div id="userPostsContainer" class="grid-2" style="margin-top: 1rem;">
+            <div class="loading">Загрузка постов...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+const userId = window.location.pathname.split('/').pop();
+let currentUserId = null;
+
+// Check if viewing own profile
+if (window.currentUser) {
+    currentUserId = window.currentUser.id;
+}
+
+async function loadProfile() {
+    try {
+        const response = await fetch(`/api/v1/users/${userId}`);
+        if (!response.ok) throw new Error('User not found');
+        
+        const user = await response.json();
+        displayProfile(user);
+        loadUserPosts();
+    } catch (error) {
+        document.getElementById('profileContainer').innerHTML = '<p class="alert alert-error">Пользователь не найден</p>';
+    }
+}
+
+function displayProfile(user) {
+    const isOwnProfile = currentUserId && currentUserId == userId;
+    
+    document.getElementById('profileContainer').innerHTML = `
+        <div class="profile-card fade-in">
+            <div class="avatar">
+                ${user.username.charAt(0).toUpperCase()}
+            </div>
+            <div class="profile-info">
+                <h2>${escapeHtml(user.username)}</h2>
+                <p style="color: var(--text-light);">${escapeHtml(user.email)}</p>
+                ${user.profile_text ? `<p style="margin-top: 1rem;">${escapeHtml(user.profile_text)}</p>` : ''}
+                <div class="profile-stats">
+                    <div class="stat">
+                        <div class="stat-value">${user.posts_count || 0}</div>
+                        <div class="stat-label">Постов</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">${user.followers_count || 0}</div>
+                        <div class="stat-label">Подписчиков</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">${user.following_count || 0}</div>
+                        <div class="stat-label">Подписок</div>
+                    </div>
+                </div>
+                ${isOwnProfile ? `
+                    <button onclick="editProfile()" class="btn" style="margin-top: 1rem;">Редактировать профиль</button>
+                ` : `
+                    <button onclick="followUser()" class="btn" style="margin-top: 1rem;" id="followBtn">Подписаться</button>
+                `}
+            </div>
+        </div>
+    `;
+}
+
+async function loadUserPosts() {
+    try {
+        const response = await fetch(`/api/v1/users/${userId}/posts?page=1&page_size=100`);
+        const posts = await response.json();
+        
+        const container = document.getElementById('userPostsContainer');
+        if (posts.length === 0) {
+            container.innerHTML = '<p style="text-align: center; grid-column: 1/-1;">Пока нет постов</p>';
+            return;
+        }
+        
+        container.innerHTML = posts.map(post => `
+            <article class="post-card card fade-in">
+                <h3><a href="/post/${post.id}">${escapeHtml(post.post_title)}</a></h3>
+                <div class="post-meta">
+                    <span>❤️ ${post.likes_count}</span>
+                    <span>💬 ${post.comments_count}</span>
+                    <span>📅 ${formatDate(post.created_at)}</span>
+                </div>
+                ${post.tags.length > 0 ? `
+                    <div class="tags">
+                        ${post.tags.map(tag => `<span class="tag">${escapeHtml(tag.tag_name)}</span>`).join('')}
+                    </div>
+                ` : ''}
+                <div class="post-content">
+                    <p>${escapeHtml(post.post_content.substring(0, 150))}${post.post_content.length > 150 ? '...' : ''}</p>
+                </div>
+                <a href="/post/${post.id}" class="btn btn-outline" style="margin-top: 1rem;">Читать далее</a>
+            </article>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading posts:', error);
+    }
+}
+
+async function followUser() {
+    try {
+        const response = await apiRequest(`/api/v1/users/${userId}/follow`, {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            showAlert('Вы подписались! 💕', 'success');
+            document.getElementById('followBtn').textContent = 'Отписаться';
+            document.getElementById('followBtn').onclick = unfollowUser;
+            loadProfile();
+        } else {
+            showAlert('Войдите, чтобы подписаться', 'error');
+        }
+    } catch (error) {
+        showAlert('Ошибка', 'error');
+    }
+}
+
+async function unfollowUser() {
+    try {
+        const response = await apiRequest(`/api/v1/users/${userId}/follow`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            showAlert('Вы отписались', 'success');
+            document.getElementById('followBtn').textContent = 'Подписаться';
+            document.getElementById('followBtn').onclick = followUser;
+            loadProfile();
+        }
+    } catch (error) {
+        showAlert('Ошибка', 'error');
+    }
+}
+
+function editProfile() {
+    const newBio = prompt('Обновите информацию о себе:');
+    if (newBio !== null) {
+        updateProfile(newBio);
+    }
+}
+
+async function updateProfile(profileText) {
+    try {
+        const response = await apiRequest(`/api/v1/users/${userId}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                profile_text: profileText
+            })
+        });
+        
+        if (response.ok) {
+            showAlert('Профиль обновлен! ✨', 'success');
+            loadProfile();
+        }
+    } catch (error) {
+        showAlert('Ошибка обновления', 'error');
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+loadProfile();
+</script>
+{% endblock %}
